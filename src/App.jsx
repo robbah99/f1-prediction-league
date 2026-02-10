@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Calendar, Lock, CheckCircle, Users, TrendingUp, LogOut, CalendarDays } from 'lucide-react';
+import { Lock, CheckCircle, LogOut } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -28,6 +28,20 @@ const USERS = [
   { username: 'Fredrik', password: '1234' },
   { username: 'Klas', password: '1234' }
 ];
+
+// F1 Team Colors
+const TEAM_COLORS = {
+  'Red Bull Racing': '#3671C6',
+  'Ferrari': '#E8002D',
+  'Mercedes': '#27F4D2',
+  'McLaren': '#FF8000',
+  'Aston Martin': '#229971',
+  'Alpine': '#FF87BC',
+  'Williams': '#64C4FF',
+  'Racing Bulls': '#6692FF',
+  'Kick Sauber': '#52E252',
+  'Haas F1 Team': '#B6BABD',
+};
 
 // ============================================================================
 // OpenF1 API
@@ -109,6 +123,26 @@ const buildDriversList = (apiDrivers) => {
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+// Position badge component
+const PosBadge = ({ pos, size = 'sm' }) => {
+  const colors = {
+    1: 'bg-f1-red text-white',
+    2: 'bg-gray-500 text-white',
+    3: 'bg-amber-700 text-white',
+  };
+  const sizes = {
+    xs: 'text-xs px-1.5 py-0.5',
+    sm: 'text-xs px-2 py-1',
+    md: 'text-sm px-2.5 py-1',
+    lg: 'text-base px-3 py-1.5 font-bold',
+  };
+  return (
+    <span className={`${colors[pos] || 'bg-f1-muted text-gray-300'} ${sizes[size]} font-bold uppercase tracking-wider inline-block`}>
+      P{pos}
+    </span>
+  );
 };
 
 const F1PredictionApp = () => {
@@ -337,6 +371,21 @@ const F1PredictionApp = () => {
     return driver ? driver.name : driverId;
   };
 
+  const getDriverCode = (driverId) => {
+    const driver = drivers.find(d => d.id === driverId);
+    return driver ? driver.code : driverId?.substring(0, 3).toUpperCase();
+  };
+
+  const getDriverTeam = (driverId) => {
+    const driver = drivers.find(d => d.id === driverId);
+    return driver ? driver.team : null;
+  };
+
+  const getTeamColor = (driverId) => {
+    const team = getDriverTeam(driverId);
+    return team ? (TEAM_COLORS[team] || '#38384A') : '#38384A';
+  };
+
   const getRaceWinner = (round) => {
     if (!predictions[round] || !results[round]) return null;
 
@@ -381,398 +430,413 @@ const F1PredictionApp = () => {
   };
 
   const getUserColors = () => {
-    const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'];
-    const colorMap = {
-      'Robert': colors[0],
-      'Johan': colors[1],
-      'Fredrik': colors[2],
-      'Klas': colors[3]
+    return {
+      'Robert': '#E10600',
+      'Johan': '#3671C6',
+      'Fredrik': '#27F4D2',
+      'Klas': '#FF8000',
     };
-    return colorMap;
   };
 
+  const tabs = [
+    { key: 'predict', label: 'Vote' },
+    { key: 'predictions', label: 'Votes' },
+    { key: 'calendar', label: 'Calendar' },
+    { key: 'leaderboard', label: 'Standings' },
+  ];
+
+  // ===================== LOADING SCREEN =====================
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-900 via-gray-900 to-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading F1 data...</div>
+      <div className="min-h-screen bg-f1-dark flex flex-col items-center justify-center">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
+        <div className="flex gap-1.5 mb-6">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div
+              key={i}
+              className="w-2 h-10 bg-f1-red f1-pulse"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+        <div className="text-white text-sm font-f1 uppercase tracking-[0.3em]">Loading F1 Data</div>
       </div>
     );
   }
 
+  // ===================== ERROR SCREEN =====================
   if (apiError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-900 via-gray-900 to-black flex items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full text-center">
-          <div className="text-red-500 text-5xl mb-4">!</div>
-          <h2 className="text-2xl font-bold text-white mb-2">Failed to Load F1 Data</h2>
-          <p className="text-gray-400 mb-6">{apiError}</p>
-          <button
-            onClick={loadData}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition"
-          >
-            Retry
-          </button>
+      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
+        <div className="bg-f1-card border-l-4 border-f1-red p-8 max-w-md w-full">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-f1-red flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xl font-black">!</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-white font-f1 uppercase tracking-wider mb-2">Red Flag</h2>
+              <p className="text-sm text-white font-f1 uppercase tracking-wider mb-1">Failed to Load F1 Data</p>
+              <p className="text-gray-400 text-sm mb-6">{apiError}</p>
+              <button
+                onClick={loadData}
+                className="bg-f1-red hover:bg-red-700 text-white font-bold font-f1 uppercase tracking-wider py-3 px-6 transition text-sm"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ===================== LOGIN SCREEN =====================
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-900 via-gray-900 to-black flex items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full">
-          <div className="flex items-center justify-center mb-6">
-            <Trophy className="w-12 h-12 text-red-500 mr-3" />
-            <div>
-              <h1 className="text-3xl font-bold text-white">F1 Prediction League</h1>
-              <p className="text-red-400 font-semibold">2026 Season</p>
+      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
+        <div className="bg-f1-card max-w-md w-full">
+          <div className="h-1.5 bg-f1-red" />
+          <div className="p-8">
+            <div className="mb-8">
+              <h1 className="text-3xl font-black text-white font-f1 uppercase tracking-wider">
+                F1 <span className="text-f1-red">Prediction</span> League
+              </h1>
+              <p className="text-gray-400 font-f1 uppercase tracking-wider text-sm mt-2">2026 Season</p>
             </div>
-          </div>
-          <p className="text-gray-300 mb-6 text-center">Login to join the competition</p>
 
-          <div className="mb-4">
-            <label className="block text-white font-semibold mb-2">Select User</label>
-            <select
-              value={selectedUser}
-              onChange={(e) => {
-                setSelectedUser(e.target.value);
-                setLoginError('');
-              }}
-              className="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="">Choose your username...</option>
-              {USERS.map(user => (
-                <option key={user.username} value={user.username}>
-                  {user.username}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="mb-5">
+              <label className="block text-white font-f1 uppercase tracking-wider text-xs mb-2">Select User</label>
+              <select
+                value={selectedUser}
+                onChange={(e) => {
+                  setSelectedUser(e.target.value);
+                  setLoginError('');
+                }}
+                className="w-full p-3 bg-f1-surface border border-f1-muted text-white focus:outline-none focus:border-f1-red"
+              >
+                <option value="">Choose your username...</option>
+                {USERS.map(user => (
+                  <option key={user.username} value={user.username}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="mb-4">
-            <label className="block text-white font-semibold mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setLoginError('');
-              }}
-              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="Enter your password"
-              className="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="flex items-center text-white cursor-pointer">
+            <div className="mb-5">
+              <label className="block text-white font-f1 uppercase tracking-wider text-xs mb-2">Password</label>
               <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500 focus:ring-2 mr-2"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setLoginError('');
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="Enter your password"
+                className="w-full p-3 bg-f1-surface border border-f1-muted text-white focus:outline-none focus:border-f1-red"
               />
-              <span className="text-sm">Remember me on this device</span>
-            </label>
-          </div>
-
-          {loginError && (
-            <div className="mb-4 p-3 bg-red-900 border border-red-600 rounded-lg text-red-200 text-sm">
-              {loginError}
             </div>
-          )}
 
-          <button
-            onClick={handleLogin}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition"
-          >
-            Login
-          </button>
+            <div className="mb-5">
+              <label className="flex items-center text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 mr-2 accent-[#E10600]"
+                />
+                <span className="text-sm font-f1 uppercase tracking-wider">Remember me</span>
+              </label>
+            </div>
 
-          <div className="mt-6 p-4 bg-gray-700 rounded-lg">
-            <p className="text-gray-300 text-sm mb-2">
-              <strong>Password for all users: 1234</strong>
-            </p>
+            {loginError && (
+              <div className="mb-5 p-3 bg-f1-surface border-l-4 border-f1-red text-red-200 text-sm font-f1">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              onClick={handleLogin}
+              className="w-full bg-f1-red hover:bg-red-700 text-white font-bold font-f1 uppercase tracking-wider py-3 transition text-sm"
+            >
+              Login
+            </button>
+
           </div>
         </div>
       </div>
     );
   }
 
+  // ===================== MAIN APP =====================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-900 via-gray-900 to-black p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-gray-800 rounded-lg shadow-2xl p-6 mb-6">
-          <div className="flex flex-col gap-4">
+    <div className="min-h-screen bg-f1-dark">
+      {/* Top red accent line */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red z-50" />
+
+      <div className="max-w-6xl mx-auto p-4 pt-5">
+        {/* Header */}
+        <div className="bg-f1-card mb-6">
+          <div className="p-5">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center">
-                <Trophy className="w-10 h-10 text-red-500 mr-3" />
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-10 bg-f1-red" />
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">F1 Prediction League</h1>
-                  <p className="text-gray-400 text-sm md:text-base">2026 Season • Welcome, {currentUser}!</p>
+                  <h1 className="text-2xl md:text-3xl font-black text-white font-f1 uppercase tracking-wider">
+                    F1 <span className="text-f1-red">Prediction</span> League
+                  </h1>
+                  <p className="text-gray-400 text-sm font-f1 uppercase tracking-wider">
+                    2026 Season — {currentUser}
+                  </p>
                 </div>
               </div>
-              {nextRace && (
-                <div className="text-right">
-                  <div className="text-xs md:text-sm text-gray-400">Next Race</div>
-                  <div className="text-base md:text-lg font-bold text-white">{nextRace.name}</div>
-                  <div className="text-xs md:text-sm text-gray-400">{nextRace.circuit}</div>
-                </div>
-              )}
+              <div className="flex items-center gap-3">
+                {nextRace && (
+                  <div className="text-right">
+                    <div className="text-xs text-gray-400 font-f1 uppercase tracking-wider">Next Race</div>
+                    <div className="text-base md:text-lg font-bold text-white font-f1">{nextRace.name}</div>
+                    <div className="text-xs text-gray-400">{nextRace.circuit}</div>
+                  </div>
+                )}
+                <div className="w-1 h-10 bg-f1-red" />
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex justify-end mt-3">
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition text-xs md:text-sm ml-auto"
+                className="text-gray-400 hover:text-white text-xs font-f1 uppercase tracking-wider transition flex items-center gap-1"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
+                <LogOut className="w-3 h-3" />
+                Logout
               </button>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('predict')}
-            className={`py-3 px-4 rounded-lg font-semibold transition ${
-              activeTab === 'predict' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            <Calendar className="w-5 h-5 inline mr-2" />
-            Vote on Race
-          </button>
-          <button
-            onClick={() => setActiveTab('predictions')}
-            className={`py-3 px-4 rounded-lg font-semibold transition ${
-              activeTab === 'predictions' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            <Users className="w-5 h-5 inline mr-2" />
-            Current Votes
-          </button>
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`py-3 px-4 rounded-lg font-semibold transition ${
-              activeTab === 'calendar' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            <CalendarDays className="w-5 h-5 inline mr-2" />
-            Race Calendar
-          </button>
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`py-3 px-4 rounded-lg font-semibold transition ${
-              activeTab === 'leaderboard' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            <TrendingUp className="w-5 h-5 inline mr-2" />
-            Leaderboard
-          </button>
+        {/* Tab Navigation — single row with bottom border active indicator */}
+        <div className="flex border-b border-f1-muted mb-6 overflow-x-auto">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`py-3 px-5 font-f1 uppercase tracking-wider text-sm font-bold transition whitespace-nowrap ${
+                activeTab === tab.key
+                  ? 'text-white border-b-2 border-f1-red'
+                  : 'text-gray-400 hover:text-white border-b-2 border-transparent'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
+        {/* ===================== PREDICT TAB ===================== */}
         {activeTab === 'predict' && nextRace && (
-          <div className="bg-gray-800 rounded-lg shadow-2xl p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-4">
-              {nextRace.name} - Round {nextRace.round}
+          <div className="bg-f1-card p-6">
+            <h2 className="text-xl md:text-2xl font-black text-white font-f1 uppercase tracking-wider mb-5">
+              {nextRace.name} <span className="text-gray-400 font-bold">R{nextRace.round.padStart(2, '0')}</span>
             </h2>
 
             {isPredictionLocked() ? (
-              <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-3 md:p-4 mb-6">
-                <div className="flex items-center text-yellow-200 text-sm md:text-base">
-                  <Lock className="w-4 h-4 md:w-5 md:h-5 mr-2 flex-shrink-0" />
-                  <span className="font-semibold">Voting is locked! Qualifying has started.</span>
+              <div className="bg-f1-surface border-l-4 border-yellow-500 p-3 md:p-4 mb-6">
+                <div className="flex items-center text-yellow-200 text-sm">
+                  <Lock className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="font-f1 uppercase tracking-wider font-bold">Voting locked — Qualifying has started</span>
                 </div>
               </div>
             ) : (
-              <div className="bg-green-900 border border-green-600 rounded-lg p-3 md:p-4 mb-6">
-                <div className="flex items-center text-green-200 text-sm md:text-base">
-                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5 mr-2 flex-shrink-0" />
-                  <span className="font-semibold">Voting open until qualifying starts</span>
+              <div className="bg-f1-surface border-l-4 border-green-500 p-3 md:p-4 mb-6">
+                <div className="flex items-center text-green-200 text-sm">
+                  <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="font-f1 uppercase tracking-wider font-bold">Voting open until qualifying starts</span>
                 </div>
               </div>
             )}
 
             {predictions[nextRace.round]?.[currentUser] && (
-              <div className="bg-blue-900 border border-blue-600 rounded-lg p-3 md:p-4 mb-6">
-                <p className="text-blue-200 font-semibold mb-2 text-sm md:text-base">Your current vote:</p>
-                <div className="text-white text-sm md:text-base">
-                  <div>🥇 1st: {getDriverName(predictions[nextRace.round][currentUser].first)}</div>
-                  <div>🥈 2nd: {getDriverName(predictions[nextRace.round][currentUser].second)}</div>
-                  <div>🥉 3rd: {getDriverName(predictions[nextRace.round][currentUser].third)}</div>
+              <div className="bg-f1-surface border-l-4 border-blue-500 p-3 md:p-4 mb-6">
+                <p className="text-blue-200 font-f1 uppercase tracking-wider text-xs font-bold mb-2">Your current vote</p>
+                <div className="text-white text-sm space-y-1">
+                  <div className="flex items-center gap-2">
+                    <PosBadge pos={1} size="xs" />
+                    <span>{getDriverName(predictions[nextRace.round][currentUser].first)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PosBadge pos={2} size="xs" />
+                    <span>{getDriverName(predictions[nextRace.round][currentUser].second)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PosBadge pos={3} size="xs" />
+                    <span>{getDriverName(predictions[nextRace.round][currentUser].third)}</span>
+                  </div>
                 </div>
               </div>
             )}
 
             {drivers.length === 0 ? (
-              <div className="bg-yellow-900 border border-yellow-600 rounded-lg p-3 md:p-4 mb-6">
-                <p className="text-yellow-200 font-semibold text-sm md:text-base">
+              <div className="bg-f1-surface border-l-4 border-yellow-500 p-3 md:p-4 mb-6">
+                <p className="text-yellow-200 font-f1 uppercase tracking-wider text-xs font-bold">
                   Driver list not yet available. The driver data will appear once the season is closer.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-white font-semibold mb-2 text-sm md:text-base">🥇 1st Place</label>
-                  <select
-                    value={prediction.first}
-                    onChange={(e) => setPrediction({ ...prediction, first: e.target.value })}
-                    disabled={isPredictionLocked()}
-                    className="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 text-sm md:text-base"
-                  >
-                    <option value="">Select driver</option>
-                    {drivers.map(driver => (
-                      <option key={driver.id} value={driver.id}>{driver.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-white font-semibold mb-2 text-sm md:text-base">🥈 2nd Place</label>
-                  <select
-                    value={prediction.second}
-                    onChange={(e) => setPrediction({ ...prediction, second: e.target.value })}
-                    disabled={isPredictionLocked()}
-                    className="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 text-sm md:text-base"
-                  >
-                    <option value="">Select driver</option>
-                    {drivers.map(driver => (
-                      <option key={driver.id} value={driver.id}>{driver.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-white font-semibold mb-2 text-sm md:text-base">🥉 3rd Place</label>
-                  <select
-                    value={prediction.third}
-                    onChange={(e) => setPrediction({ ...prediction, third: e.target.value })}
-                    disabled={isPredictionLocked()}
-                    className="w-full p-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 text-sm md:text-base"
-                  >
-                    <option value="">Select driver</option>
-                    {drivers.map(driver => (
-                      <option key={driver.id} value={driver.id}>{driver.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {[
+                  { key: 'first', pos: 1 },
+                  { key: 'second', pos: 2 },
+                  { key: 'third', pos: 3 },
+                ].map(({ key, pos }) => (
+                  <div key={key}>
+                    <label className="flex items-center gap-2 mb-2">
+                      <PosBadge pos={pos} size="sm" />
+                    </label>
+                    <div className="flex">
+                      <div
+                        className="w-1.5 flex-shrink-0 transition-colors"
+                        style={{ backgroundColor: prediction[key] ? getTeamColor(prediction[key]) : '#38384A' }}
+                      />
+                      <select
+                        value={prediction[key]}
+                        onChange={(e) => setPrediction({ ...prediction, [key]: e.target.value })}
+                        disabled={isPredictionLocked()}
+                        className="w-full p-3 bg-f1-surface border border-f1-muted border-l-0 text-white focus:outline-none focus:border-f1-red disabled:opacity-50 text-sm"
+                      >
+                        <option value="">Select driver</option>
+                        {drivers.map(driver => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.code} — {driver.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
 
                 <button
                   onClick={submitPrediction}
                   disabled={isPredictionLocked()}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                  className="w-full bg-f1-red hover:bg-red-700 text-white font-bold font-f1 uppercase tracking-wider py-3 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {predictions[nextRace.round]?.[currentUser] ? 'Update Vote' : 'Submit Vote'}
                 </button>
               </div>
             )}
 
-            <div className="mt-6 text-xs md:text-sm text-gray-400">
-              <p><strong>Scoring System:</strong></p>
-              <p>• Correct position: 10 points</p>
-              <p>• Right driver, 1 position off: 5 points</p>
-              <p>• Right driver, 2 positions off: 2 points</p>
+            <div className="mt-6 pt-4 border-t border-f1-muted">
+              <p className="text-xs text-gray-400 font-f1 uppercase tracking-wider mb-3 font-bold">Scoring System</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-f1-surface p-3">
+                  <div className="text-2xl font-black text-white f1-mono">10</div>
+                  <div className="text-xs text-gray-400 font-f1 uppercase tracking-wider">Exact</div>
+                </div>
+                <div className="bg-f1-surface p-3">
+                  <div className="text-2xl font-black text-white f1-mono">5</div>
+                  <div className="text-xs text-gray-400 font-f1 uppercase tracking-wider">1 Off</div>
+                </div>
+                <div className="bg-f1-surface p-3">
+                  <div className="text-2xl font-black text-white f1-mono">2</div>
+                  <div className="text-xs text-gray-400 font-f1 uppercase tracking-wider">2 Off</div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
+        {/* ===================== CALENDAR TAB ===================== */}
         {activeTab === 'calendar' && (
-          <div className="bg-gray-800 rounded-lg shadow-2xl p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white">2026 Race Calendar</h2>
-                <p className="text-gray-400 text-xs md:text-sm mt-1">
-                  {Object.keys(results).length} of {allRaces.length} races completed
-                </p>
-              </div>
-              <div className="text-gray-400 text-sm w-full sm:w-48">
-                <div className="bg-gray-700 rounded-full h-3">
-                  <div
-                    className="bg-red-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${(Object.keys(results).length / allRaces.length) * 100}%` }}
-                  ></div>
+          <div>
+            <div className="bg-f1-card p-5 mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black text-white font-f1 uppercase tracking-wider">Race Calendar</h2>
+                  <p className="text-gray-400 text-xs font-f1 uppercase tracking-wider mt-1">
+                    {Object.keys(results).length} of {allRaces.length} completed
+                  </p>
+                </div>
+                <div className="w-full sm:w-48">
+                  <div className="bg-f1-surface h-1.5">
+                    <div
+                      className="bg-f1-red h-1.5 transition-all duration-300"
+                      style={{ width: `${(Object.keys(results).length / allRaces.length) * 100}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
+
+            <div className="space-y-px">
               {allRaces.map((race) => {
                 const raceDate = new Date(race.raceStart);
                 const isUpcoming = nextRace && race.round === nextRace.round;
                 const isPast = new Date() > raceDate;
                 const hasResult = results[race.round];
 
+                const borderColor = isUpcoming ? '#E10600' : hasResult ? '#22c55e' : '#38384A';
+
                 return (
                   <div
                     key={race.round}
-                    className={`p-4 rounded-lg border-2 ${
-                      isUpcoming
-                        ? 'bg-red-900 border-red-500'
-                        : isPast
-                        ? 'bg-gray-700 border-gray-600'
-                        : 'bg-gray-700 border-gray-500'
-                    }`}
+                    className="bg-f1-card flex"
                   >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-gray-400 font-bold text-sm">Round {race.round}</span>
-                          {isUpcoming && (
-                            <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                              Next Race
-                            </span>
-                          )}
-                          {hasResult && (
-                            <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                              ✓ Completed
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-lg md:text-xl font-bold text-white mb-1">{race.name}</h3>
-                        <p className="text-gray-300 text-sm">{race.circuit}</p>
-                        <p className="text-gray-400 text-xs">{race.country}</p>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <p className="text-white font-semibold text-sm md:text-base">
-                          {new Date(race.raceStart).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </p>
-                        {race.qualifyingStart && (
-                          <p className="text-gray-400 text-xs">
-                            Quali: {new Date(race.qualifyingStart).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric'
-                            })}
-                          </p>
-                        )}
-                      </div>
+                    {/* Round number column */}
+                    <div
+                      className="w-14 md:w-16 flex-shrink-0 flex items-center justify-center border-l-4"
+                      style={{ borderLeftColor: borderColor, backgroundColor: '#1a1a24' }}
+                    >
+                      <span className="text-gray-400 font-black text-lg f1-mono">
+                        {race.round.padStart(2, '0')}
+                      </span>
                     </div>
 
-                    {hasResult && (
-                      <div className="mt-3 pt-3 border-t border-gray-600">
-                        <p className="text-green-400 text-xs md:text-sm font-semibold mb-1">Race Result:</p>
-                        <div className="text-gray-300 text-xs md:text-sm mb-2 break-words">
-                          🥇 {getDriverName(results[race.round].podium[0])} •
-                          🥈 {getDriverName(results[race.round].podium[1])} •
-                          🥉 {getDriverName(results[race.round].podium[2])}
+                    {/* Race info */}
+                    <div className="flex-1 p-3 md:p-4 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm md:text-base font-bold text-white font-f1 uppercase tracking-wider">{race.name}</h3>
+                            {isUpcoming && (
+                              <span className="bg-f1-red text-white text-[10px] px-2 py-0.5 font-f1 uppercase tracking-wider font-bold">
+                                Next
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-400 text-xs">{race.circuit} — {race.country}</p>
                         </div>
-                        {(() => {
-                          const raceWinner = getRaceWinner(race.round);
-                          if (raceWinner) {
-                            return (
-                              <div className="bg-yellow-900 bg-opacity-30 rounded px-2 md:px-3 py-2 mt-2">
-                                <p className="text-yellow-400 text-xs md:text-sm font-semibold break-words">
-                                  🏆 Best: {raceWinner.users.join(', ')} ({raceWinner.score} pts)
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
+                        <div className="text-left sm:text-right flex-shrink-0">
+                          <p className="text-white font-semibold text-sm f1-mono">
+                            {raceDate.toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    )}
+
+                      {hasResult && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {results[race.round].podium.map((driverId, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                              <PosBadge pos={i + 1} size="xs" />
+                              <span className="text-white text-xs font-bold f1-mono">{getDriverCode(driverId)}</span>
+                            </div>
+                          ))}
+                          {(() => {
+                            const raceWinner = getRaceWinner(race.round);
+                            if (raceWinner) {
+                              return (
+                                <span className="text-gray-400 text-xs ml-auto">
+                                  Best: <span className="text-white font-bold">{raceWinner.users.join(', ')}</span> <span className="f1-mono">{raceWinner.score} PTS</span>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -780,59 +844,64 @@ const F1PredictionApp = () => {
           </div>
         )}
 
+        {/* ===================== LEADERBOARD TAB ===================== */}
         {activeTab === 'leaderboard' && (
-          <div className="bg-gray-800 rounded-lg shadow-2xl p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Season Leaderboard</h2>
+          <div>
+            <div className="bg-f1-card p-6 mb-4">
+              <h2 className="text-xl md:text-2xl font-black text-white font-f1 uppercase tracking-wider">Championship Standings</h2>
+            </div>
 
             {leaderboard.length === 0 ? (
-              <p className="text-gray-400 text-center py-8 text-sm md:text-base">No scores yet. Start voting!</p>
+              <div className="bg-f1-card p-8">
+                <p className="text-gray-400 text-center font-f1 uppercase tracking-wider text-sm">No scores yet. Start voting!</p>
+              </div>
             ) : (
               <>
-                <div className="mb-8">
-                  <div className="space-y-2">
-                    {leaderboard.map((entry, index) => (
+                <div className="space-y-px mb-6">
+                  {leaderboard.map((entry, index) => {
+                    const userColor = getUserColors()[entry.user] || '#38384A';
+                    return (
                       <div
                         key={entry.user}
-                        className={`flex items-center justify-between px-4 py-2 rounded-lg border-l-4 ${
-                          index === 0 ? 'bg-yellow-900 border-yellow-500' :
-                          index === 1 ? 'bg-gray-700 border-gray-400' :
-                          index === 2 ? 'bg-orange-900 border-orange-600' :
-                          'bg-gray-700 border-gray-600'
-                        }`}
+                        className="bg-f1-card flex items-center p-4 gap-4"
                       >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <span className="text-lg md:text-xl font-bold text-white w-6 flex-shrink-0">
-                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
-                          </span>
-                          <span className="text-base md:text-lg font-semibold text-white truncate">{entry.user}</span>
-                        </div>
-                        <span className="text-lg md:text-xl font-bold text-red-400 flex-shrink-0">{entry.score}</span>
+                        <PosBadge pos={index + 1} size="md" />
+                        <div
+                          className="w-1 h-8 flex-shrink-0"
+                          style={{ backgroundColor: userColor }}
+                        />
+                        <span className="text-base md:text-lg font-bold text-white font-f1 uppercase tracking-wider flex-1 min-w-0 truncate">
+                          {entry.user}
+                        </span>
+                        <span className="text-lg md:text-xl font-black text-white f1-mono flex-shrink-0">
+                          {entry.score} <span className="text-gray-400 text-sm">PTS</span>
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
 
                 {getChartData().length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg md:text-xl font-bold text-white mb-4">Points Progression</h3>
-                    <div className="bg-gray-700 p-4 rounded-lg">
+                  <div className="bg-f1-card p-5">
+                    <h3 className="text-lg font-bold text-white font-f1 uppercase tracking-wider mb-4">Points Progression</h3>
+                    <div className="bg-f1-surface p-4">
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={getChartData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#38384A" />
                           <XAxis
                             dataKey="round"
-                            stroke="#9ca3af"
+                            stroke="#6b7280"
                             style={{ fontSize: '12px' }}
                           />
                           <YAxis
-                            stroke="#9ca3af"
+                            stroke="#6b7280"
                             style={{ fontSize: '12px' }}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: '#1f2937',
-                              border: '1px solid #374151',
-                              borderRadius: '8px',
+                              backgroundColor: '#1F1F27',
+                              border: '1px solid #38384A',
+                              borderRadius: '0px',
                               color: '#fff'
                             }}
                           />
@@ -861,33 +930,79 @@ const F1PredictionApp = () => {
           </div>
         )}
 
+        {/* ===================== CURRENT VOTES TAB ===================== */}
         {activeTab === 'predictions' && nextRace && (
-          <div className="bg-gray-800 rounded-lg shadow-2xl p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Current Votes - {nextRace.name}</h2>
+          <div>
+            <div className="bg-f1-card p-6 mb-4">
+              <h2 className="text-xl md:text-2xl font-black text-white font-f1 uppercase tracking-wider">
+                Current Votes <span className="text-gray-400 font-bold text-base">— {nextRace.name}</span>
+              </h2>
+            </div>
+
             {!predictions[nextRace.round] || Object.keys(predictions[nextRace.round]).length === 0 ? (
-              <p className="text-gray-400 text-center py-8 text-sm md:text-base">No votes yet for this race.</p>
+              <div className="bg-f1-card p-8">
+                <p className="text-gray-400 text-center font-f1 uppercase tracking-wider text-sm">No votes yet for this race.</p>
+              </div>
             ) : (
-              <div className="space-y-4">
-                {Object.keys(predictions[nextRace.round]).map(user => (
-                  <div key={user} className="bg-gray-700 p-3 md:p-4 rounded-lg">
-                    <h3 className="text-base md:text-lg font-bold text-white mb-2">{user}</h3>
-                    <div className="text-gray-300 space-y-1 text-sm md:text-base">
-                      <div>🥇 {getDriverName(predictions[nextRace.round][user].first)}</div>
-                      <div>🥈 {getDriverName(predictions[nextRace.round][user].second)}</div>
-                      <div>🥉 {getDriverName(predictions[nextRace.round][user].third)}</div>
+              <div className="space-y-px">
+                {Object.keys(predictions[nextRace.round]).map(user => {
+                  const userColor = getUserColors()[user] || '#38384A';
+                  const userPrediction = predictions[nextRace.round][user];
+                  return (
+                    <div key={user} className="bg-f1-card">
+                      {/* User header bar */}
+                      <div className="flex items-center gap-3 bg-f1-surface px-4 py-2">
+                        <div className="w-1 h-5" style={{ backgroundColor: userColor }} />
+                        <h3 className="text-sm font-bold text-white font-f1 uppercase tracking-wider">{user}</h3>
+                      </div>
+                      {/* Predictions grid */}
+                      <div className="grid grid-cols-3 divide-x divide-f1-muted">
+                        {[
+                          { key: 'first', pos: 1 },
+                          { key: 'second', pos: 2 },
+                          { key: 'third', pos: 3 },
+                        ].map(({ key, pos }) => {
+                          const driverId = userPrediction[key];
+                          const teamColor = getTeamColor(driverId);
+                          return (
+                            <div key={key} className="p-3 text-center">
+                              <div className="mb-1"><PosBadge pos={pos} size="xs" /></div>
+                              <div className="text-white font-black text-lg f1-mono" style={{ color: teamColor }}>
+                                {getDriverCode(driverId)}
+                              </div>
+                              <div className="text-gray-400 text-[10px] font-f1 uppercase tracking-wider truncate">
+                                {getDriverTeam(driverId) || ''}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {results[nextRace.round] && (
-              <div className="mt-6 bg-green-900 border border-green-600 rounded-lg p-4">
-                <h3 className="text-lg font-bold text-green-200 mb-2">Actual Result:</h3>
-                <div className="text-white space-y-1">
-                  <div>🥇 {getDriverName(results[nextRace.round].podium[0])}</div>
-                  <div>🥈 {getDriverName(results[nextRace.round].podium[1])}</div>
-                  <div>🥉 {getDriverName(results[nextRace.round].podium[2])}</div>
+              <div className="mt-4 bg-f1-card border-l-4 border-green-500">
+                <div className="px-4 py-2 bg-f1-surface">
+                  <h3 className="text-sm font-bold text-green-400 font-f1 uppercase tracking-wider">Actual Result</h3>
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-f1-muted">
+                  {results[nextRace.round].podium.map((driverId, i) => {
+                    const teamColor = getTeamColor(driverId);
+                    return (
+                      <div key={i} className="p-3 text-center">
+                        <div className="mb-1"><PosBadge pos={i + 1} size="xs" /></div>
+                        <div className="text-white font-black text-lg f1-mono" style={{ color: teamColor }}>
+                          {getDriverCode(driverId)}
+                        </div>
+                        <div className="text-gray-400 text-[10px] font-f1 uppercase tracking-wider truncate">
+                          {getDriverTeam(driverId) || ''}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

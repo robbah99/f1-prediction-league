@@ -125,6 +125,75 @@ const buildDriversList = (apiDrivers) => {
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
+// Checkered stripe component — proper checkered flag with alternating rows
+const CheckeredStripe = ({ rows = 2, squareSize = 8, className = '' }) => {
+  const totalHeight = rows * squareSize;
+  return (
+    <div className={`w-full overflow-hidden ${className}`} style={{ height: `${totalHeight}px` }}>
+      <svg width="100%" height={totalHeight} preserveAspectRatio="none">
+        <defs>
+          <pattern id="checkeredFlag" width={squareSize * 2} height={squareSize * 2} patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width={squareSize} height={squareSize} fill="#ffffff" />
+            <rect x={squareSize} y="0" width={squareSize} height={squareSize} fill="#15151E" />
+            <rect x="0" y={squareSize} width={squareSize} height={squareSize} fill="#15151E" />
+            <rect x={squareSize} y={squareSize} width={squareSize} height={squareSize} fill="#ffffff" />
+          </pattern>
+        </defs>
+        <rect width="100%" height={totalHeight} fill="url(#checkeredFlag)" />
+      </svg>
+    </div>
+  );
+};
+
+// Racing helmet SVG icon
+const HelmetIcon = ({ size = 32, color = '#E10600' }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M6 20C6 12 10 6 18 6C24 6 28 10 28 16V18C28 19.1 27.1 20 26 20H24L22 24H10L8 20H6Z"
+      fill={color}
+    />
+    <path
+      d="M12 14H24C24 11 22 8 18 8C14 8 12 11 12 14Z"
+      fill="#15151E"
+      opacity="0.6"
+    />
+    <rect x="10" y="20" width="12" height="2" rx="0.5" fill="#15151E" opacity="0.4" />
+    <path
+      d="M6 20C5 20 4 19.5 4 18C4 17 4.5 16.5 6 16.5"
+      stroke={color}
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+// Starting lights panel component — 5 circles that animate on sequentially
+const StartingLights = () => (
+  <div className="flex flex-col items-center mb-6">
+    {/* Gantry housing */}
+    <div className="bg-[#1a1a24] border border-f1-muted rounded-sm px-4 py-3 flex gap-3 shadow-lg">
+      {[0, 1, 2, 3, 4].map(i => (
+        <div
+          key={i}
+          className="flex flex-col items-center gap-1"
+        >
+          {/* Light housing */}
+          <div className="bg-[#0d0d14] rounded-full p-1.5 border border-[#2a2a3a]">
+            <div
+              className="w-6 h-6 rounded-full starting-light"
+              style={{ animationDelay: `${i * 0.4}s` }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* Gantry arm */}
+    <div className="w-2 h-4 bg-[#1a1a24] border-x border-f1-muted" />
+    <div className="w-32 h-1 bg-[#1a1a24] border border-f1-muted rounded-sm" />
+  </div>
+);
+
 // Position badge component
 const PosBadge = ({ pos, size = 'sm' }) => {
   const colors = {
@@ -448,18 +517,12 @@ const F1PredictionApp = () => {
   // ===================== LOADING SCREEN =====================
   if (loading) {
     return (
-      <div className="min-h-screen bg-f1-dark flex flex-col items-center justify-center">
-        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
-        <div className="flex gap-1.5 mb-6">
-          {[0, 1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              className="w-2 h-10 bg-f1-red f1-pulse"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
+      <div className="min-h-screen bg-f1-dark flex flex-col items-center justify-center checkered-bg">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red z-10" />
+        <div className="relative z-10">
+          <StartingLights />
+          <div className="text-white text-sm font-f1 uppercase tracking-[0.3em] text-center">Loading F1 Data</div>
         </div>
-        <div className="text-white text-sm font-f1 uppercase tracking-[0.3em]">Loading F1 Data</div>
       </div>
     );
   }
@@ -467,9 +530,9 @@ const F1PredictionApp = () => {
   // ===================== ERROR SCREEN =====================
   if (apiError) {
     return (
-      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4">
-        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
-        <div className="bg-f1-card border-l-4 border-f1-red p-8 max-w-md w-full">
+      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4 checkered-bg">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red z-10" />
+        <div className="bg-f1-card border-l-4 border-f1-red p-8 max-w-md w-full relative z-10 speed-stripes">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 bg-f1-red flex items-center justify-center flex-shrink-0">
               <span className="text-white text-xl font-black">!</span>
@@ -494,10 +557,10 @@ const F1PredictionApp = () => {
   // ===================== LOGIN SCREEN =====================
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4">
-        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red" />
-        <div className="bg-f1-card max-w-md w-full">
-          <div className="h-1.5 bg-f1-red" />
+      <div className="min-h-screen bg-f1-dark flex items-center justify-center p-4 checkered-bg">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red z-10" />
+        <div className="bg-f1-card max-w-md w-full relative z-10 speed-stripes">
+          <CheckeredStripe rows={3} squareSize={6} />
           <div className="p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-black text-white font-f1 uppercase tracking-wider">
@@ -573,25 +636,22 @@ const F1PredictionApp = () => {
 
   // ===================== MAIN APP =====================
   return (
-    <div className="min-h-screen bg-f1-dark">
+    <div className="min-h-screen bg-f1-dark checkered-bg">
       {/* Top red accent line */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-f1-red z-50" />
 
-      <div className="max-w-6xl mx-auto p-4 pt-5">
+      <div className="max-w-6xl mx-auto p-4 pt-5 relative z-10">
         {/* Header */}
         <div className="bg-f1-card mb-6">
           <div className="p-5">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-10 bg-f1-red" />
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-black text-white font-f1 uppercase tracking-wider">
-                    F1 <span className="text-f1-red">Prediction</span> League
-                  </h1>
-                  <p className="text-gray-400 text-sm font-f1 uppercase tracking-wider">
-                    2026 Season — {currentUser}
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black text-white font-f1 uppercase tracking-wider">
+                  F1 <span className="text-f1-red">Prediction</span> League
+                </h1>
+                <p className="text-gray-400 text-sm font-f1 uppercase tracking-wider">
+                  2026 Season — {currentUser}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 {nextRace && (
@@ -614,6 +674,7 @@ const F1PredictionApp = () => {
               </button>
             </div>
           </div>
+          <CheckeredStripe rows={2} squareSize={5} />
         </div>
 
         {/* Tab Navigation — single row with bottom border active indicator */}
@@ -1008,6 +1069,11 @@ const F1PredictionApp = () => {
             )}
           </div>
         )}
+
+        {/* Footer accent */}
+        <div className="mt-8 mb-4">
+          <CheckeredStripe rows={2} squareSize={5} />
+        </div>
       </div>
     </div>
   );

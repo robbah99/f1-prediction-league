@@ -42,6 +42,51 @@
         font-variant-numeric: tabular-nums;
         font-feature-settings: "tnum";
       }
+
+      /* Checkered flag background pattern */
+      .checkered-bg {
+        position: relative;
+      }
+      .checkered-bg::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image: repeating-conic-gradient(
+          rgba(255,255,255,0.035) 0% 25%, transparent 0% 50%
+        );
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Starting lights animation */
+      @keyframes lightOn {
+        0%, 15% { background-color: #38384A; box-shadow: none; }
+        20%, 85% { background-color: #E10600; box-shadow: 0 0 20px #E10600, 0 0 40px rgba(225,6,0,0.4); }
+        90%, 100% { background-color: #38384A; box-shadow: none; }
+      }
+      .starting-light {
+        animation: lightOn 2.8s ease-in-out infinite;
+      }
+
+      /* Diagonal speed stripes */
+      .speed-stripes {
+        position: relative;
+      }
+      .speed-stripes::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 20px,
+          rgba(225,6,0,0.03) 20px,
+          rgba(225,6,0,0.03) 22px
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
     </style>
   </head>
   <body>

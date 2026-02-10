@@ -43,6 +43,81 @@ const TEAM_COLORS = {
   'Haas F1 Team': '#B6BABD',
 };
 
+// Team display order (approximate constructor standings)
+const TEAM_ORDER = [
+  'McLaren', 'Ferrari', 'Red Bull Racing', 'Mercedes',
+  'Aston Martin', 'Alpine', 'Haas F1 Team', 'Racing Bulls',
+  'Williams', 'Kick Sauber',
+];
+
+// Team emblem SVG components — abstract/geometric designs, not real logos
+const TeamEmblem = ({ team, size = 28 }) => {
+  const color = TEAM_COLORS[team] || '#38384A';
+  const emblems = {
+    'Red Bull Racing': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M4 22C4 22 8 10 16 8C20 7 26 10 28 14L24 18L20 16L16 20L12 17L8 22H4Z" fill={color} />
+        <circle cx="22" cy="12" r="1.5" fill={color} />
+      </svg>
+    ),
+    'Ferrari': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M16 4C16 4 12 8 12 14V26H14V20L16 16L18 20V26H20V14C20 8 16 4 16 4Z" fill={color} />
+        <path d="M12 14H10L8 18H12Z" fill={color} />
+        <path d="M20 14H22L24 18H20Z" fill={color} />
+      </svg>
+    ),
+    'Mercedes': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="11" stroke={color} strokeWidth="2" fill="none" />
+        <path d="M16 5L16 16L6.5 21.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <path d="M16 16L25.5 21.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
+    'McLaren': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M4 20C4 20 8 10 16 10C24 10 28 20 28 20" stroke={color} strokeWidth="3" strokeLinecap="round" fill="none" />
+        <path d="M8 16C8 16 12 12 16 12C20 12 24 16 24 16" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+      </svg>
+    ),
+    'Aston Martin': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M2 18L10 14L16 8L22 14L30 18L26 18L22 16L16 12L10 16L6 18Z" fill={color} />
+        <rect x="14" y="18" width="4" height="6" rx="1" fill={color} />
+      </svg>
+    ),
+    'Alpine': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M16 6L26 24H6L16 6Z" fill={color} opacity="0.3" />
+        <path d="M16 12L22 24H10L16 12Z" fill={color} />
+        <path d="M12 20H20" stroke="#15151E" strokeWidth="1.5" />
+      </svg>
+    ),
+    'Williams': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M6 8L10 24L13 14L16 24L19 14L22 24L26 8" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </svg>
+    ),
+    'Racing Bulls': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M8 20C8 20 10 14 16 12C20 11 24 14 26 16L22 18L18 16L14 19L10 17L8 20Z" fill={color} />
+        <circle cx="20" cy="13" r="1" fill={color} />
+      </svg>
+    ),
+    'Kick Sauber': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M22 8C18 8 14 10 14 14C14 16 16 18 18 18C14 18 10 20 10 24" stroke={color} strokeWidth="3" strokeLinecap="round" fill="none" />
+      </svg>
+    ),
+    'Haas F1 Team': (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M8 6V26M24 6V26M8 16H24" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    ),
+  };
+  return emblems[team] || null;
+};
+
 // ============================================================================
 // OpenF1 API
 // ============================================================================
@@ -123,6 +198,47 @@ const buildDriversList = (apiDrivers) => {
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+// Medal icon component — gold, silver, bronze
+const MedalIcon = ({ type, size = 16 }) => {
+  const colors = {
+    gold: { main: '#FFD700', shadow: '#B8960C', ribbon: '#E10600' },
+    silver: { main: '#C0C0C0', shadow: '#808080', ribbon: '#3671C6' },
+    bronze: { main: '#CD7F32', shadow: '#8B5A1E', ribbon: '#229971' },
+  };
+  const c = colors[type];
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M8 2L10 6L12 2" stroke={c.ribbon} strokeWidth="1.5" fill="none" />
+      <circle cx="10" cy="12" r="6" fill={c.main} />
+      <circle cx="10" cy="12" r="4.5" stroke={c.shadow} strokeWidth="0.8" fill="none" />
+      <circle cx="10" cy="12" r="2" fill={c.shadow} opacity="0.3" />
+    </svg>
+  );
+};
+
+// Podium stats display for a driver
+const PodiumStats = ({ podiums }) => {
+  if (!podiums || (podiums[0] === 0 && podiums[1] === 0 && podiums[2] === 0)) {
+    return <span className="text-gray-500 text-xs font-f1">—</span>;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      {[
+        { idx: 0, type: 'gold' },
+        { idx: 1, type: 'silver' },
+        { idx: 2, type: 'bronze' },
+      ].map(({ idx, type }) => (
+        podiums[idx] > 0 && (
+          <div key={type} className="flex items-center gap-0.5">
+            <MedalIcon type={type} size={14} />
+            <span className="text-xs font-bold text-white f1-mono">{podiums[idx]}</span>
+          </div>
+        )
+      ))}
+    </div>
+  );
 };
 
 // Checkered stripe component — proper checkered flag with alternating rows
@@ -455,6 +571,19 @@ const F1PredictionApp = () => {
     return team ? (TEAM_COLORS[team] || '#38384A') : '#38384A';
   };
 
+  const getDriverPodiums = () => {
+    const podiums = {};
+    Object.keys(results).forEach(round => {
+      if (results[round]?.podium) {
+        results[round].podium.forEach((driverId, i) => {
+          if (!podiums[driverId]) podiums[driverId] = [0, 0, 0];
+          podiums[driverId][i]++;
+        });
+      }
+    });
+    return podiums;
+  };
+
   const getRaceWinner = (round) => {
     if (!predictions[round] || !results[round]) return null;
 
@@ -512,6 +641,7 @@ const F1PredictionApp = () => {
     { key: 'predictions', label: 'Votes' },
     { key: 'calendar', label: 'Calendar' },
     { key: 'leaderboard', label: 'Standings' },
+    { key: 'teams', label: 'Teams' },
   ];
 
   // ===================== LOADING SCREEN =====================
@@ -1067,6 +1197,71 @@ const F1PredictionApp = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ===================== TEAMS TAB ===================== */}
+        {activeTab === 'teams' && (
+          <div>
+            <div className="bg-f1-card p-6 mb-4">
+              <h2 className="text-xl md:text-2xl font-black text-white font-f1 uppercase tracking-wider">Teams & Drivers</h2>
+              <p className="text-gray-400 text-xs font-f1 uppercase tracking-wider mt-1">
+                2026 Season — {Object.keys(TEAM_COLORS).length} Teams
+              </p>
+            </div>
+
+            {drivers.length === 0 ? (
+              <div className="bg-f1-card p-8">
+                <p className="text-gray-400 text-center font-f1 uppercase tracking-wider text-sm">
+                  Driver data not yet available. Check back closer to the season.
+                </p>
+              </div>
+            ) : (() => {
+              const driverPodiums = getDriverPodiums();
+              return (
+                <div className="space-y-px">
+                  {TEAM_ORDER
+                    .filter(teamName => drivers.some(d => d.team === teamName))
+                    .map(teamName => {
+                      const teamColor = TEAM_COLORS[teamName] || '#38384A';
+                      const teamDrivers = drivers.filter(d => d.team === teamName);
+                      return (
+                        <div key={teamName} className="bg-f1-card">
+                          {/* Team header */}
+                          <div
+                            className="flex items-center gap-3 px-4 py-3 bg-f1-surface border-l-4"
+                            style={{ borderLeftColor: teamColor }}
+                          >
+                            <TeamEmblem team={teamName} size={28} />
+                            <h3 className="text-sm md:text-base font-bold text-white font-f1 uppercase tracking-wider flex-1">
+                              {teamName}
+                            </h3>
+                          </div>
+                          {/* Drivers */}
+                          {teamDrivers.map(driver => (
+                            <div key={driver.id} className="flex items-center gap-3 px-4 py-2.5 border-t border-f1-muted/30">
+                              <span
+                                className="text-xs font-black f1-mono w-8 text-right flex-shrink-0"
+                                style={{ color: teamColor }}
+                              >
+                                #{driver.number}
+                              </span>
+                              <span
+                                className="text-sm font-black f1-mono w-12 flex-shrink-0"
+                                style={{ color: teamColor }}
+                              >
+                                {driver.code}
+                              </span>
+                              <span className="text-sm text-white font-f1 flex-1">{driver.name}</span>
+                              <PodiumStats podiums={driverPodiums[driver.id] || [0, 0, 0]} />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                </div>
+              );
+            })()}
           </div>
         )}
 
